@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dumptruck Round Trip Monitor</title>
+<style>
+:root{--bg:#f4f1ea;--card:#fff;--tx:#1f2328;--mu:#6b7280;--ac:#d97706;--bd:#e5e0d5;--ok:#15803d;--bad:#b91c1c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--card:#1f2226;--tx:#eceef1;--mu:#9aa1ab;--ac:#f59e0b;--bd:#2f343a;--ok:#4ade80;--bad:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15171a;--card:#1f2226;--tx:#eceef1;--mu:#9aa1ab;--ac:#f59e0b;--bd:#2f343a;--ok:#4ade80;--bad:#f87171;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:900px;margin:0 auto;padding:14px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
+h1{font-size:18px;margin:0}.sub{color:var(--mu);font-size:12px}
+.clock{text-align:right;font-variant-numeric:tabular-nums}.clock b{font-size:22px;display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.g{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(min-width:600px){.g4{grid-template-columns:repeat(4,1fr)}}
+label{font-size:12px;color:var(--mu);display:block;margin-bottom:3px}
+input,select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:9px;background:var(--bg);color:var(--tx);font:inherit}
+.btn{padding:8px 12px;border:1px solid var(--bd);border-radius:9px;background:var(--card);color:var(--tx);cursor:pointer;font:inherit}
+.fl{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px;margin:10px 0}
+.fb{display:flex;justify-content:space-between;align-items:center;padding:13px 9px;font-weight:700;font-size:14px;touch-action:manipulation}
+.fb i{font-style:normal;background:var(--ac);color:#111;border-radius:99px;padding:0 7px;font-size:12px}
+.fb.on{border-color:var(--ac)}.fb:active{background:var(--ac);color:#111}.fb.ed{border-color:var(--bad);color:var(--bad)}
+.st{background:var(--bg);border-radius:10px;padding:10px}.st b{font-size:19px;display:block;font-variant-numeric:tabular-nums}.st span{font-size:12px;color:var(--mu)}
+.bars{display:flex;align-items:flex-end;gap:3px;height:80px;margin-top:8px}
+.bar{flex:1;background:var(--ac);border-radius:3px 3px 0 0;min-height:2px}.bar.z{background:var(--bd)}
+.hl{display:flex;gap:3px;font-size:10px;color:var(--mu)}.hl i{flex:1;text-align:center;font-style:normal}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}th{font-size:12px;color:var(--mu)}
+.x{background:none;border:0;color:var(--bad);cursor:pointer;font-size:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.row>div{flex:1;min-width:130px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#111;padding:10px 16px;border-radius:99px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+details summary{cursor:pointer;color:var(--mu);font-size:13px;margin-top:10px}
+</style></head><body><div class="w">
+<header><div><h1>🚚 Dumptruck Round Trip Monitor</h1><div class="sub">Curam Earthworking Inc. · Works offline · saved on this device</div></div>
+<div class="clock"><b id="clk">--:--:--</b><span class="sub" id="dt"></span></div></header>
+
+<div class="card"><div class="row">
+<div><label>Date (shift date)</label><input type="date" id="day"></div>
+<div><label>Shift</label><select id="shift"><option>Day Shift</option><option>Night Shift</option></select></div>
+<div style="flex:2;min-width:200px"><label>Station</label><input id="station"></div></div></div>
+
+<div class="card">
+<div class="row" style="align-items:center;justify-content:space-between"><b>Tap the truck that just passed</b><span><button class="btn" id="undo">↩ Undo last</button> <button class="btn" id="fe">✎ Edit</button></span></div>
+<div class="fl" id="fleet"></div>
+<div><label>Remarks for the next tap (optional)</label><input id="note" placeholder="e.g. loaded, breakdown…"></div>
+<div class="row" style="margin-top:8px"><div><input id="np" placeholder="Add truck(s): DT 188  or  DT 122-130" autocapitalize="characters"></div><button class="btn" id="npb">+ Add truck</button><button class="btn" id="unl">Truck not on list</button></div>
+<details><summary>Add a missed pass (manual time)</summary>
+<div class="row" style="margin-top:8px"><div><label>Truck</label><select id="mtruck"></select></div><div><label>Date &amp; time</label><input type="datetime-local" id="mt"></div><button class="btn" id="madd">Add</button></div>
+</details>
+<details><summary>Names printed on the signature lines (optional)</summary>
+<div class="row" style="margin-top:8px"><div><label>Prepared by (Safety Aide)</label><input id="sg1"></div><div><label>Check &amp; Reviewed by (Safety Officer)</label><input id="sg2"></div><div><label>Noted by (Safety Engineer)</label><input id="sg3"></div><div><label>Approved by (Safety Officer)</label><input id="sg4"></div></div></details>
+<details><summary>Reset truck list</summary><div style="margin-top:10px"><button class="btn" id="rst">Reset truck list to DT 81–DT 187 (62 trucks)</button></div></details>
+</div>
+
+<div class="card">
+<div class="g g4">
+<div class="st"><b id="s1">0</b><span>Total trips</span></div>
+<div class="st"><b id="s2">0</b><span>Trucks seen</span></div>
+<div class="st"><b id="s3">–</b><span>Last pass</span></div>
+<div class="st"><b id="s4">–</b><span>Avg gap</span></div></div>
+<div class="bars" id="bars"></div><div class="hl" id="hl"></div>
+<div class="row" style="margin-top:12px"><button class="btn" id="doc">⬇ Word / Google Docs (.docx) — monitoring sheet</button><button class="btn" id="csv">⬇ CSV</button></div>
+</div>
+
+<div class="card"><label>Search log</label><input id="q" placeholder="Truck or remarks…">
+<div class="tw"><table><thead><tr><th>Trip</th><th>Time</th><th>Truck</th><th>Remarks</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="sub" id="empty" style="padding:10px">No passes logged for this date and shift yet.</div></div>
+</div><div id="toast"></div>
+<script>
+function crc32(b){let t=crc32.t,c;if(!t){t=crc32.t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}}let r=-1;for(let i=0;i<b.length;i++)r=t[(r^b[i])&255]^(r>>>8);return(r^-1)>>>0}
+function zipBlob(files){
+  const enc=new TextEncoder(),parts=[],cd=[];let off=0;
+  const u16=n=>[n&255,(n>>8)&255],u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];
+  for(const f of files){const nm=enc.encode(f.name),d=enc.encode(f.text),crc=crc32(d),sz=d.length;
+    const lh=new Uint8Array([0x50,0x4b,3,4,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(sz),...u32(sz),...u16(nm.length),...u16(0)]);
+    parts.push(lh,nm,d);
+    cd.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(sz),...u32(sz),...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nm);
+    off+=lh.length+nm.length+sz}
+  const cs=cd.reduce((a,b)=>a+b.length,0);
+  const end=new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(cs),...u32(off),0,0]);
+  return new Blob([...parts,...cd,end],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+}
+function buildDocx(meta,trucks){
+  const x=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const run=(t,o)=>`<w:r><w:rPr>${o.b?"<w:b/>":""}<w:sz w:val="${o.sz||14}"/></w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
+  const para=(t,o={})=>`<w:p><w:pPr><w:spacing w:before="0" w:after="${o.after||0}" w:line="240" w:lineRule="auto"/><w:jc w:val="${o.jc||"left"}"/></w:pPr>${run(t,o)}</w:p>`;
+  const F="F3E3CC";
+  const tc=(t,w,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span?`<w:gridSpan w:val="${o.span}"/>`:""}${o.vm?`<w:vMerge${o.vm==="r"?' w:val="restart"':""}/>`:""}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${F}"/>`:""}<w:vAlign w:val="center"/></w:tcPr>${para(t,{jc:o.jc||"center",b:o.b,sz:o.sz})}</w:tc>`;
+  const tr=(cells,hd)=>`<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="222" w:hRule="atLeast"/>${hd?"<w:tblHeader/>":""}</w:trPr>${cells}</w:tr>`;
+  const bd=["top","left","bottom","right","insideH","insideV"].map(k=>`<w:${k} w:val="single" w:sz="4" w:space="0" w:color="444444"/>`).join("");
+  const spacer=b=>`<w:p><w:pPr><w:spacing w:before="${b}" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr></w:p>`;
+  // one table: first = first trip number shown (1 or 13, 25...), items = [{no,name,times,remarks}]
+  const mk=(title,first,items,rem)=>{
+    const tw=rem?620:786,W=[450,900,...Array(12).fill(tw),...(rem?[2000]:[])],TW=W.reduce((a,b)=>a+b,0);
+    const h1=tr(tc("NO",450,{vm:"r",fill:1,b:1})+tc("EQUIPMENT",900,{vm:"r",fill:1,b:1})+tc(title,tw*12,{span:12,fill:1,b:1,sz:18})+(rem?tc("REMARKS",2000,{vm:"r",fill:1,b:1}):""),1);
+    let h2=tc("",450,{vm:"c",fill:1})+tc("",900,{vm:"c",fill:1});
+    for(let i=0;i<12;i++)h2+=tc(String(first+i),tw,{fill:1,b:1});
+    if(rem)h2+=tc("",2000,{vm:"c",fill:1});
+    const body=items.map(t=>{let c=tc(String(t.no),450)+tc(t.name||"No number",900,{b:1});
+      for(let k=0;k<12;k++)c+=tc(t.times[first-1+k]||"",tw);
+      return tr(c+(rem?tc(t.remarks||"",2000,{jc:"left",sz:12}):""))}).join("");
+    return `<w:tbl><w:tblPr><w:tblW w:w="${TW}" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders>${bd}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="30" w:type="dxa"/><w:right w:w="30" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${W.map(w=>`<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${h1}${tr(h2,1)}${body}</w:tbl>`;
+  };
+  const all=trucks.map((t,i)=>({...t,no:i+1}));
+  let tables=mk((meta.station||"").toUpperCase(),1,all,true);
+  const maxT=Math.max(0,...all.map(t=>t.times.length));
+  for(let f=13;f<=maxT;f+=12){
+    const items=all.filter(t=>t.times.length>=f);
+    tables+=spacer(240)+mk("CONTINUATION - TRIPS "+f+" TO "+(f+11),f,items,false);
+  }
+  const col=(lab,name,role)=>`<w:tc><w:tcPr><w:tcW w:w="2697" w:type="dxa"/></w:tcPr>${para(lab,{b:1,sz:18})}<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="000000"/></w:pBdr><w:spacing w:before="420" w:after="0"/><w:ind w:right="240"/><w:jc w:val="center"/></w:pPr>${run(name||"",{b:1,sz:18})}</w:p>${para(role,{sz:18,jc:"center"})}</w:tc>`;
+  const sg=meta.sign||[];
+  const sigTbl=`<w:tbl><w:tblPr><w:tblW w:w="10790" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${[1,2,3,4].map(()=>'<w:gridCol w:w="2697"/>').join("")}</w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>${col("Prepared by:",sg[0],"Safety Aide")}${col("Check & Reviewed by:",sg[1],"Safety Officer")}${col("Noted by:",sg[2],"Safety Engineer")}${col("Approved by:",sg[3],"Safety Officer")}</w:tr></w:tbl>`;
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`+
+   para("CURAM EARTHWORKING INCORPORATED",{b:1,sz:30})+
+   para("Blk10 Lot 1,2 & 3 New Business Park San Jose Malino, Mexico City, Pampanga, Phil.",{sz:16,after:100})+
+   para("Date: "+meta.date+"          SHIFT: "+meta.shift,{b:1,sz:20,after:80})+
+   para("DUMPTRUCK DAILY ROUND TRIP MONITORING",{b:1,sz:30,jc:"center",after:60})+
+   tables+spacer(200)+sigTbl+spacer(0)+
+   `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="500" w:right="576" w:bottom="400" w:left="576" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  return zipBlob([
+    {name:"[Content_Types].xml",text:H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'},
+    {name:"_rels/.rels",text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'},
+    {name:"word/document.xml",text:doc}]);
+}
+
+const $=id=>document.getElementById(id),LS="truck_passes_v1",FL="truck_fleet",PF="truck_prefs";
+const N45=[81,82,83,84,85,86,89,92,94,99,100,...Array.from({length:17},(_,i)=>105+i),...Array.from({length:17},(_,i)=>154+i)].map(n=>"DT "+n);
+const DEF=[...N45,...Array.from({length:17},(_,i)=>"DT "+(171+i))];
+const sortFleet=l=>[...new Set(l)].sort((x,y)=>{const f=s=>{const m=s.match(/\d+/);return m?+m[0]:1e9};return f(x)-f(y)});
+function parseTrucks(s){const out=[];s.split(/[,\n;]+/).forEach(p=>{p=p.trim().toUpperCase();if(!p)return;const m=p.match(/^DT[\s-]*(\d+)\s*(?:-|TO)\s*(?:DT[\s-]*)?(\d+)$/);if(m){const a=+m[1],b=+m[2];if(b>=a&&b-a<=200)for(let i=a;i<=b;i++)out.push("DT "+i)}else out.push(normPlate(p))});return out}
+const savePrefs=()=>sj(PF,{shift:$("shift").value,station:$("station").value,sg:[1,2,3,4].map(i=>$("sg"+i).value)});
+let rows=[],fleet=[],edit=false;
+const pad=n=>String(n).padStart(2,"0");
+const dkey=t=>{const d=new Date(t);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+const tstr=t=>new Date(t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const t24=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const lj=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
+const sj=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const normPlate=s=>{s=s.trim().toUpperCase();const m=s.match(/^DT[\s-]*(\d+)$/);return m?"DT "+m[1]:s};
+function toast(m,bad){const t=$("toast");t.textContent=m;t.style.background=bad?"var(--bad)":"var(--ok)";t.style.opacity=1;clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity=0,1800)}
+function cur(){const d=$("day").value,s=$("shift").value;return rows.filter(r=>(r.sd||dkey(r.ts))===d&&(r.sh||"Day Shift")===s)}
+function addRow(ts,plate){
+  const r={id:uid(),ts,plate:plate||"",sd:$("day").value,sh:$("shift").value,note:$("note").value.trim()};
+  rows.push(r);sj(LS,rows);$("note").value="";render();
+  const n=cur().filter(x=>x.plate===r.plate&&x.ts<=r.ts).length;
+  toast((plate||"Unlisted truck")+" · trip "+n+" · "+tstr(ts));
+}
+function del(id){if(!confirm("Delete this entry?"))return;rows=rows.filter(r=>r.id!==id);sj(LS,rows);render()}
+function undo(){const ids=new Set(cur().map(r=>r.id));for(let i=rows.length-1;i>=0;i--)if(ids.has(rows[i].id)){const r=rows.splice(i,1)[0];sj(LS,rows);render();return toast("Removed "+(r.plate||"unlisted")+" "+tstr(r.ts),1)}toast("Nothing to undo",1)}
+function render(){
+  const all=cur().sort((a,b)=>a.ts-b.ts),q=$("q").value.toLowerCase(),cnt={},trip={};
+  all.forEach(r=>{cnt[r.plate]=(cnt[r.plate]||0)+1;trip[r.id]=cnt[r.plate]});
+  $("s1").textContent=all.length;$("s2").textContent=Object.keys(cnt).length;
+  $("s3").textContent=all.length?(all[all.length-1].plate||"?")+" "+t24(all[all.length-1].ts):"–";
+  if(all.length>1){const g=(all[all.length-1].ts-all[0].ts)/(all.length-1)/60000;$("s4").textContent=g<1?Math.round(g*60)+" s":g.toFixed(1)+" min"}else $("s4").textContent="–";
+  const h=Array(24).fill(0);all.forEach(r=>h[new Date(r.ts).getHours()]++);const mx=Math.max(...h);
+  $("bars").innerHTML=h.map((v,i)=>`<div class="bar ${v?"":"z"}" style="height:${mx?Math.max(3,v/mx*100):3}%" title="${pad(i)}:00 — ${v}"></div>`).join("");
+  $("hl").innerHTML=h.map((_,i)=>`<i>${i%3==0?i:""}</i>`).join("");
+  $("fleet").innerHTML=fleet.map(p=>`<button class="btn fb${cnt[p]?" on":""}${edit?" ed":""}" data-p="${esc(p)}"><span>${esc(p)}${edit?" ✕":""}</span>${cnt[p]&&!edit?`<i>${cnt[p]}</i>`:""}</button>`).join("")||'<span class="sub">No trucks saved. Add them below.</span>';
+  $("fe").textContent=edit?"✔ Done":"✎ Edit";
+  $("mtruck").innerHTML=fleet.map(p=>`<option>${esc(p)}</option>`).join("");
+  const list=all.filter(r=>!q||((r.plate||"unlisted")+" "+(r.note||"")).toLowerCase().includes(q)).reverse();
+  $("tb").innerHTML=list.map(r=>`<tr><td>${trip[r.id]}</td><td><b>${tstr(r.ts)}</b></td><td>${esc(r.plate)||"Unlisted"}</td><td>${esc(r.note)}</td><td><button class="x" data-id="${r.id}" title="Delete">✕</button></td></tr>`).join("");
+  $("empty").style.display=list.length?"none":"block";
+}
+function tick(){const n=new Date();$("clk").textContent=n.toLocaleTimeString();$("dt").textContent=n.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric",year:"numeric"})}
+function sheet(){ // group current view by truck, in fleet order, extras last
+  const all=cur().sort((a,b)=>a.ts-b.ts),by={};all.forEach(r=>(by[r.plate]=by[r.plate]||[]).push(r));
+  const names=[...fleet,...Object.keys(by).filter(p=>!fleet.includes(p))];
+  return {all,trucks:names.map(n=>{const l=by[n]||[];return{name:n,times:l.map(r=>t24(r.ts)),remarks:l.filter(r=>r.note).map(r=>t24(r.ts)+" "+r.note).join("; ")}})};
+}
+function save(blob,name){
+  if(window.AndroidBridge && typeof window.AndroidBridge.saveFile === "function"){
+    const reader=new FileReader();
+    reader.onload=()=>{const b64=String(reader.result).split(",")[1]||"";window.AndroidBridge.saveFile(name,b64)};
+    reader.readAsDataURL(blob);
+    return;
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove()
+}
+function exportDoc(){
+  const {all,trucks}=sheet();if(!all.length)return toast("No passes to export for this date and shift",1);
+  const d=new Date($("day").value+"T00:00:00").toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"});
+  save(buildDocx({date:d,shift:$("shift").value,station:$("station").value,sign:[1,2,3,4].map(i=>$("sg"+i).value.trim())},trucks),"Dumptruck-Round-Trip-"+$("day").value+"-"+$("shift").value.split(" ")[0]+".docx");
+}
+function exportCsv(){
+  const all=cur().sort((a,b)=>a.ts-b.ts),cnt={},c=s=>'"'+String(s==null?"":s).replace(/"/g,'""')+'"';
+  const lines=all.map(r=>{cnt[r.plate]=(cnt[r.plate]||0)+1;return[$("day").value,$("shift").value,$("station").value,r.plate||"Unlisted",cnt[r.plate],tstr(r.ts),r.note].map(c).join(",")});
+  save(new Blob(["\ufeff"+"Date,Shift,Station,Truck,Trip,Time,Remarks\n"+lines.join("\n")],{type:"text/csv"}),"truck-trips-"+$("day").value+".csv");
+}
+$("fleet").onclick=e=>{const b=e.target.closest(".fb");if(!b)return;const p=b.dataset.p;if(edit){fleet=fleet.filter(x=>x!==p);sj(FL,fleet);render()}else addRow(Date.now(),p)};
+$("fe").onclick=()=>{edit=!edit;render()};$("undo").onclick=undo;$("unl").onclick=()=>addRow(Date.now(),"");
+$("npb").onclick=()=>{const v=parseTrucks($("np").value);if(!v.length)return;fleet=sortFleet([...fleet,...v]);sj(FL,fleet);$("np").value="";render();toast("Trucks added")};
+$("rst").onclick=()=>{if(confirm("Replace the truck list with the 62 trucks (DT 81–DT 187)?")){fleet=DEF.slice();sj(FL,fleet);render()}};
+$("madd").onclick=()=>{const v=$("mt").value;if(!v)return toast("Pick a date and time first",1);addRow(new Date(v).getTime(),$("mtruck").value)};
+$("tb").onclick=e=>{const b=e.target.closest(".x");if(b)del(b.dataset.id)};
+$("day").onchange=render;$("shift").onchange=()=>{savePrefs();render()};
+["station","sg1","sg2","sg3","sg4"].forEach(k=>$(k).oninput=savePrefs);
+$("q").oninput=render;$("doc").onclick=exportDoc;$("csv").onclick=exportCsv;
+const n=new Date(),pf=lj(PF,{});
+$("day").value=dkey(n);$("mt").value=dkey(n)+"T"+pad(n.getHours())+":"+pad(n.getMinutes());
+$("shift").value=pf.shift||"Day Shift";$("station").value=pf.station||"Station 1 - Waste Dump 4 Exit Area";
+(pf.sg||[]).forEach((v,i)=>{$("sg"+(i+1)).value=v||""});
+rows=lj(LS,[]);fleet=lj(FL,[]);if(!fleet.length||JSON.stringify(fleet)===JSON.stringify(N45)){fleet=DEF.slice();sj(FL,fleet)}
+render();tick();setInterval(tick,1000);
+</script></body></html>
